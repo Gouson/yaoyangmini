@@ -1,25 +1,72 @@
 {
-	"pages": [ //pages数组中第一项表示应用启动页，参考：https://uniapp.dcloud.io/collocation/pages
-		{
-			"path" : "pages/login/login",
-			"style" : 
-			{
-				"navigationBarTitleText" : ""
+	"pages": [{
+			"path": "pages/login/login",
+			"style": {
+				"navigationBarTitleText": "登录"
 			}
 		},
 		{
-			"path": "pages/index/index",
+			"path": "pages/admin/index",
 			"style": {
-				"navigationBarTitleText": "uni-app"
+				"navigationBarTitleText": "管理后台"
+			}
+		},
+		{
+			"path": "pages/cs/index",
+			"style": {
+				"navigationBarTitleText": "客服工作台"
+			}
+		},
+		{
+			"path": "pages/cs/createOrder", // <-- 新增创建订单页面
+			"style": {
+				"navigationBarTitleText": "创建新订单"
+			}
+		},
+		{
+			"path": "pages/supplier/index",
+			"style": {
+				"navigationBarTitleText": "供货商中心"
+			}
+		},
+		{
+			"path": "pages/common/orderDetails", // <-- 新增订单详情页面
+			"style": {
+				"navigationBarTitleText": "订单详情"
 			}
 		}
-		
 	],
 	"globalStyle": {
 		"navigationBarTextStyle": "black",
-		"navigationBarTitleText": "uni-app",
+		"navigationBarTitleText": "业务协同系统",
 		"navigationBarBackgroundColor": "#F8F8F8",
 		"backgroundColor": "#F8F8F8"
 	},
-	"uniIdRouter": {}
+	"tabBar": {
+		"color": "#7A7E83",
+		"selectedColor": "#007AFF",
+		"borderStyle": "black",
+		"backgroundColor": "#FFFFFF",
+		"list": [{
+				"pagePath": "pages/cs/index",
+				"text": "客服"
+				// "iconPath": "static/tabbar/cs.png", // 请准备相应图标
+				// "selectedIconPath": "static/tabbar/cs_selected.png"
+			},
+			{
+				"pagePath": "pages/supplier/index",
+				"text": "供货商"
+				// "iconPath": "static/tabbar/supplier.png",
+				// "selectedIconPath": "static/tabbar/supplier_selected.png"
+			},
+			{
+				"pagePath": "pages/admin/index",
+				"text": "管理"
+				// "iconPath": "static/tabbar/admin.png",
+				// "selectedIconPath": "static/tabbar/admin_selected.png"
+			}
+		]
+	},
+	// 设置应用的入口页面为登录页
+	"entryPagePath": "pages/login/login"
 }
