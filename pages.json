@@ -86,5 +86,6 @@
 		]
 	},
 	// 设置应用的入口页面为登录页
-	"entryPagePath": "pages/login/login"
+	"entryPagePath": "pages/login/login",
+	"lazyCodeLoading": "requiredComponents"
 }

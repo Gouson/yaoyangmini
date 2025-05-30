@@ -55,7 +55,7 @@
             "urlCheck" : false
         },
         "usingComponents" : true,
-		"cloudfunctionRoot":"cloudfunctions/"
+        "cloudfunctionRoot" : "cloudfunctions/"
     },
     "mp-alipay" : {
         "usingComponents" : true
