@@ -67,21 +67,21 @@
 		"backgroundColor": "#FFFFFF",
 		"list": [{
 				"pagePath": "pages/cs/index",
-				"text": "客服"
-				// "iconPath": "static/tabbar/cs.png", // 请准备相应图标
-				// "selectedIconPath": "static/tabbar/cs_selected.png"
+				"text": "客服",
+				"iconPath": "static/tabbar/cs.png", // 请准备相应图标
+				"selectedIconPath": "static/tabbar/cs_selected.png"
 			},
 			{
 				"pagePath": "pages/supplier/index",
-				"text": "供货商"
-				// "iconPath": "static/tabbar/supplier.png",
-				// "selectedIconPath": "static/tabbar/supplier_selected.png"
+				"text": "供货商",
+				"iconPath": "static/tabbar/supplier.png",
+				"selectedIconPath": "static/tabbar/supplier_selected.png"
 			},
 			{
 				"pagePath": "pages/admin/index",
-				"text": "管理"
-				// "iconPath": "static/tabbar/admin.png",
-				// "selectedIconPath": "static/tabbar/admin_selected.png"
+				"text": "管理",
+				"iconPath": "static/tabbar/admin.png",
+				"selectedIconPath": "static/tabbar/admin_selected.png"
 			}
 		]
 	},
