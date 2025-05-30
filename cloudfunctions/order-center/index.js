@@ -45,7 +45,8 @@ exports.main = async (event, context) => {
     typeFilter,
     page,
     pageSize,
-    screenshots
+    screenshots,
+    dateString
   } = event;
 
   switch (action) {
@@ -134,40 +135,81 @@ exports.main = async (event, context) => {
       }
     }
 
-    case 'viewOrders': { // 查看订单列表 (通用，根据角色过滤)
+    case 'viewOrders': {
       const p = parseInt(page) || 1;
       const ps = parseInt(pageSize) || 10;
       const skip = (p - 1) * ps;
-      let query = {};
 
-      if (statusFilter) query.status = statusFilter;
-      if (typeFilter) query.orderType = typeFilter;
+      let baseQuery = {};
+      if (statusFilter) baseQuery.status = statusFilter;
+      if (typeFilter) baseQuery.orderType = typeFilter;
+
+      console.log(`[viewOrders] Called by User Role: ${userInfo.role}, User _id: ${userInfo._id}`);
+      console.log(`[viewOrders] Received event data:`, JSON.stringify(event));
+      console.log(`[viewOrders] Initial baseQuery from filters:`, JSON.stringify(baseQuery));
+
+      let finalDbQuery = {};
 
       if (userInfo.role === 'cs') {
-        query.csId = userInfo._id;
-      } else if (userInfo.role === 'supplier') {
-        query = { // 供货商看所有待处理的，或者已分配给自己且在计时中/准备发货的
-          ...query,
-          [_.or]: [{
-              status: 'pending'
-            },
-            {
-              supplierId: userInfo._id,
-              status: _.in(['timing', 'ready_to_send'])
-            } // ready_to_send 由定时器更新
-          ]
+        finalDbQuery = {
+          ...baseQuery,
+          csId: userInfo._id
         };
-      } else if (userInfo.role !== 'admin') {
+      } else if (userInfo.role === 'supplier') {
+        console.log(`[viewOrders] Processing for SUPPLIER. UserInfo _id: ${userInfo._id}`);
+
+        // 条件1: 订单状态是 'pending' (所有供货商可见)
+        const conditionPending = {
+          status: 'pending'
+        };
+
+        // 条件2: 订单已分配给当前供货商，并且状态是 'timing' 或 'ready_to_send'
+        const conditionAssignedAndProcessing = {
+          supplierId: userInfo._id,
+          status: _.in(['timing', 'ready_to_send'])
+        };
+
+        // 构建 OR 条件
+        const orConditions = _.or([conditionPending, conditionAssignedAndProcessing]);
+
+        // 如果 baseQuery (来自前端的通用过滤器如 typeFilter) 为空，则 finalDbQuery 就是 orConditions
+        // 如果 baseQuery 不为空，则 finalDbQuery 是 baseQuery 和 orConditions 的 AND 组合
+        if (Object.keys(baseQuery).length === 0) {
+          finalDbQuery = orConditions; // 直接使用 OR 条件作为查询主体
+        } else {
+          // 例如，如果 baseQuery 是 { orderType: 'gift' }
+          // 最终查询会是： orderType === 'gift' AND ( (status === 'pending') OR (assignedToMe & processing) )
+          finalDbQuery = _.and([baseQuery, orConditions]);
+        }
+
+      } else if (userInfo.role === 'admin') {
+        finalDbQuery = {
+          ...baseQuery
+        };
+      } else {
+        console.log('[viewOrders] Permission denied for role:', userInfo.role);
         return {
           code: 403,
           message: '无权查看订单列表'
         };
       }
-      // 管理员默认无额外 query 条件，可以看到所有 (除非前端传入了 filter)
+
+      console.log(`[viewOrders] Constructed FINAL DB Query (before sending to DB):`, JSON.stringify(finalDbQuery, null, 2)); // 格式化输出，更易读
 
       try {
-        const ordersRes = await db.collection('orders').where(query).orderBy('createTime', 'desc').skip(skip).limit(ps).get();
-        const totalRes = await db.collection('orders').where(query).count();
+        const ordersRes = await db.collection('orders')
+          .where(finalDbQuery) // 将构建好的查询对象传递给 where
+          .orderBy('createTime', 'desc')
+          .skip(skip)
+          .limit(ps)
+          .get();
+
+        console.log(`[viewOrders] DB Query returned ${ordersRes.data.length} orders.`);
+        if (ordersRes.data.length > 0) {
+          console.log(`[viewOrders] First order sample (if any):`, JSON.stringify(ordersRes.data[0]));
+        }
+
+        const totalRes = await db.collection('orders').where(finalDbQuery).count();
         return {
           code: 200,
           message: '查询成功',
@@ -177,14 +219,13 @@ exports.main = async (event, context) => {
           pageSize: ps
         };
       } catch (e) {
-        console.error('查询订单列表数据库操作失败:', e);
+        console.error('[viewOrders] Database query failed:', e);
         return {
           code: 500,
-          message: '查询订单列表失败'
+          message: '查询订单列表失败 (数据库错误)'
         };
       }
     }
-
     case 'viewOrderDetails': {
       if (!orderId) return {
         code: 400,
@@ -380,7 +421,69 @@ exports.main = async (event, context) => {
         };
       }
     }
+    case 'getDailyOrderStats': {
+      if (userInfo.role !== 'admin') {
+        return {
+          code: 403,
+          message: '无权操作：仅管理员可查看统计'
+        };
+      }
+      if (!dateString) { // YYYY-MM-DD 格式
+        return {
+          code: 400,
+          message: '缺少日期参数'
+        };
+      }
 
+      try {
+        // 解析日期并设置当天的开始和结束时间 (UTC 标准)
+        // 前端传来的 dateString (如 "2025-05-30") 被视为UTC日期的开始
+        const startDate = new Date(dateString + "T00:00:00.000Z");
+        const endDate = new Date(dateString + "T23:59:59.999Z");
+
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+          return {
+            code: 400,
+            message: '日期格式无效'
+          };
+        }
+
+        console.log(`[getDailyOrderStats] Fetching orders for date: ${dateString}, UTC Start: ${startDate.toISOString()}, UTC End: ${endDate.toISOString()}`);
+
+        const dailyOrdersRes = await db.collection('orders')
+          .where({
+            createTime: _.gte(startDate).and(_.lte(endDate))
+          })
+          .orderBy('createTime', 'desc')
+          .get();
+
+        const orders = dailyOrdersRes.data;
+
+        // 计算统计数据
+        const stats = {
+          totalOrders: orders.length,
+          cdkCount: orders.filter(o => o.orderType === 'cdk').length,
+          giftCount: orders.filter(o => o.orderType === 'gift').length,
+          pendingCount: orders.filter(o => o.status === 'pending').length,
+          timingCount: orders.filter(o => o.status === 'timing').length,
+          readyToSendCount: orders.filter(o => o.status === 'ready_to_send').length,
+          completedCount: orders.filter(o => o.status === 'completed').length,
+        };
+
+        return {
+          code: 200,
+          message: '获取成功',
+          data: orders,
+          stats: stats
+        };
+      } catch (e) {
+        console.error('[getDailyOrderStats] 查询每日订单统计失败:', e);
+        return {
+          code: 500,
+          message: '查询每日订单统计失败'
+        };
+      }
+    }
     default:
       return {
         code: 404, message: '未知的 action'

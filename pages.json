@@ -5,10 +5,28 @@
 				"navigationBarTitleText": "登录"
 			}
 		},
-		{
+		{ // 管理员主页/导航页
 			"path": "pages/admin/index",
 			"style": {
-				"navigationBarTitleText": "管理后台"
+				"navigationBarTitleText": "管理中心"
+			}
+		},
+		{ // 新的用户管理页
+			"path": "pages/admin/userManagement",
+			"style": {
+				"navigationBarTitleText": "用户管理"
+			}
+		},
+		{ // 管理员订单列表页
+			"path": "pages/admin/orderList",
+			"style": {
+				"navigationBarTitleText": "所有订单管理"
+			}
+		},
+		{
+			"path": "pages/admin/statistics", // <-- 新增 Admin 统计页面
+			"style": {
+				"navigationBarTitleText": "订单统计"
 			}
 		},
 		{
@@ -18,7 +36,7 @@
 			}
 		},
 		{
-			"path": "pages/cs/createOrder", // <-- 新增创建订单页面
+			"path": "pages/cs/createOrder",
 			"style": {
 				"navigationBarTitleText": "创建新订单"
 			}
@@ -30,7 +48,7 @@
 			}
 		},
 		{
-			"path": "pages/common/orderDetails", // <-- 新增订单详情页面
+			"path": "pages/common/orderDetails",
 			"style": {
 				"navigationBarTitleText": "订单详情"
 			}
