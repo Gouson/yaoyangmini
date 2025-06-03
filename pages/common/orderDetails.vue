@@ -40,6 +40,11 @@
 				<view class="section-title">关联人员</view>
 				<view class="detail-item"><text class="label">创建客服ID:</text><text
 						class="value id-value">{{ order.csId }}</text></view>
+				<view class="detail-item"><text class="label">客服: </text><text
+						class="value id-value">{{ order.csNickname }}</text></view>
+				<view class="detail-item"><text class="label">供货商: </text><text
+						class="value id-value">{{ order.supplierNickname }}</text></view>
+
 				<view v-if="order.supplierId" class="detail-item"><text class="label">处理供货商ID:</text><text
 						class="value id-value">{{ order.supplierId }}</text></view>
 			</view>

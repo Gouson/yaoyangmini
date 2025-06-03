@@ -41,6 +41,10 @@
 					@click="goToOrderDetails(order._id)">
 					<view class="order-row"><text class="order-label">订单号:</text><text
 							class="order-value">{{ order.orderNumber }}</text></view>
+					<view class="order-row"><text class="order-label">客服:</text><text
+							class="order-value id-value">{{ order.csNickname }}</text></view>
+					<view v-if="order.supplierId" class="order-row"><text class="order-label">供货商:</text><text
+							class="order-value id-value">{{ order.supplierNickname }}</text></view>
 					<view class="order-row"><text class="order-label">买家ID:</text><text
 							class="order-value">{{ order.buyerGameId }}</text></view>
 					<view class="order-row"><text class="order-label">类型:</text><text class="order-value type-value"

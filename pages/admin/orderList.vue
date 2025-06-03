@@ -29,10 +29,10 @@
 						:class="order.orderType">{{ formatOrderType(order.orderType) }}</text></view>
 				<view class="order-row"><text class="order-label">状态:</text><text class="order-value status-value"
 						:class="order.status">{{ formatOrderStatus(order.status) }}</text></view>
-				<view class="order-row"><text class="order-label">客服ID:</text><text
-						class="order-value id-value">{{ order.csId }}</text></view>
-				<view v-if="order.supplierId" class="order-row"><text class="order-label">供货商ID:</text><text
-						class="order-value id-value">{{ order.supplierId }}</text></view>
+				<view class="order-row"><text class="order-label">客服:</text><text
+						class="order-value id-value">{{ order.csNickname }}</text></view>
+				<view v-if="order.supplierId" class="order-row"><text class="order-label">供货商:</text><text
+						class="order-value id-value">{{ order.supplierNickname }}</text></view>
 				<view class="order-row"><text class="order-label">创建时间:</text><text
 						class="order-value">{{ formatDate(order.createTime) }}</text></view>
 			</view>
