@@ -27,13 +27,16 @@ exports.main = async (event, context) => {
   const {
     action,
     username,
-    password,
+    password, // Used in login
     token,
     newUserDetails,
     userIdToUpdate,
     newStatus,
     newRole,
-    newNickname
+    newNickname,
+    userIdToDelete, // Added for adminDeleteUser
+    currentPassword, // Added for changePassword
+    newPassword // Added for changePassword
   } = event;
 
   let authUser = null; // 用于存储认证后的用户信息
@@ -222,6 +225,32 @@ exports.main = async (event, context) => {
       };
     }
 
+    case 'adminDeleteUser': { // 管理员删除用户
+      if (!authUser || authUser.role !== 'admin') {
+        return { code: 403, message: '无权操作' };
+      }
+      if (!userIdToDelete) {
+        return { code: 400, message: '缺少目标用户ID (userIdToDelete)' };
+      }
+      if (userIdToDelete === authUser._id) {
+        return { code: 400, message: '管理员不能删除自己' };
+      }
+
+      try {
+        const userToDeleteRes = await db.collection('users').doc(userIdToDelete).get();
+        if (!userToDeleteRes.data) {
+             return { code: 404, message: '目标用户不存在' };
+        }
+        // 可选：检查用户是否是最后一个管理员等逻辑，但本项目目前允许删除任何非自己的用户
+        
+        await db.collection('users').doc(userIdToDelete).remove();
+        return { code: 200, message: '用户删除成功' };
+      } catch (e) {
+        console.error('删除用户失败:', e);
+        return { code: 500, message: '删除用户失败，请重试' };
+      }
+    }
+
     case 'adminListUsers': {
       if (!authUser || authUser.role !== 'admin') return {
         code: 403,
@@ -258,6 +287,51 @@ exports.main = async (event, context) => {
         total: total.total
       };
     }
+    
+    // --- 普通用户操作 ---
+    case 'changePassword': {
+        // authUser is already fetched and validated if token was provided
+        if (!authUser) return { code: 401, message: '用户未登录，无法修改密码' }; // Should be caught by token check earlier
+        if (!currentPassword || !newPassword) {
+            return { code: 400, message: '当前密码和新密码不能为空' };
+        }
+        if (newPassword.length < 6) { // Example: Minimum password length
+            return { code: 400, message: '新密码长度不能少于6位' };
+        }
+        if (currentPassword === newPassword) {
+            return { code: 400, message: '新密码不能与当前密码相同' };
+        }
+
+        // Fetch the full user document again to ensure we have the latest salt and passwordHash
+        const userSnapshot = await db.collection('users').doc(authUser._id).get();
+        if (!userSnapshot.data) {
+            return { code: 404, message: '用户不存在或已被删除' }; // Should not happen if authUser is valid
+        }
+        const fullUserRecord = userSnapshot.data;
+
+        if (!verifyPassword(currentPassword, fullUserRecord.passwordHash, fullUserRecord.salt)) {
+            return { code: 401, message: '当前密码错误' };
+        }
+
+        const { salt, hash } = hashPassword(newPassword);
+        try {
+            await db.collection('users').doc(authUser._id).update({
+                data: {
+                    passwordHash: hash,
+                    salt: salt,
+                    updateTime: new Date(),
+                    // Optional: Invalidate other tokens by clearing or regenerating them
+                    // token: null, // Or generate a new token and return it
+                    // tokenExpireTime: null
+                }
+            });
+            return { code: 200, message: '密码修改成功' };
+        } catch (e) {
+            console.error('修改密码失败:', e);
+            return { code: 500, message: '密码修改失败，请重试' };
+        }
+    }
+
 
     case 'getActiveSuppliers': { // 新增 action
       // 权限：只有客服和管理员可以获取供货商列表

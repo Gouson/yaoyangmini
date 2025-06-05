@@ -17,6 +17,18 @@
 				"navigationBarTitleText": "用户管理"
 			}
 		},
+		{ // <-- 新增 Admin 添加用户页面
+			"path": "pages/admin/addUser",
+			"style": {
+				"navigationBarTitleText": "添加新用户"
+			}
+		},
+		{
+		    "path": "pages/user/changePassword",
+		    "style": {
+		        "navigationBarTitleText": "修改密码"
+		    }
+		},
 		{ // 管理员订单列表页
 			"path": "pages/admin/orderList",
 			"style": {

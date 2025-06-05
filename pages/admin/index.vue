@@ -3,9 +3,9 @@
 		<view v-if="isLoggedIn && userRole === 'admin'">
 			<view class="header">
 				<text class="page-main-title">管理中心</text>
-				<button class="logout-button-header" size="mini" @click="handleLogout">退出登录</button>
+				<button class="logout-button-header" size="mini" @click="handleLogout">退出登录</button> <button
+					type="default" class="action-button" size="mini" @click="goToChangePassword">修改密码</button>
 			</view>
-
 			<view class="menu-grid">
 				<view class="menu-item" @click="goToUserManagementPage">
 					<image class="menu-icon" src="/static/icons/user-management.png"></image> <text
@@ -105,6 +105,11 @@
 			goToOrderListPage() {
 				uni.navigateTo({
 					url: '/pages/admin/orderList'
+				});
+			},
+			goToChangePassword() {
+				uni.navigateTo({
+					url: '/pages/user/changePassword' // 这是我们之前创建的修改密码页面的路径
 				});
 			},
 			handleLogout() {

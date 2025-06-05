@@ -3,6 +3,10 @@
 		<view v-if="isLoggedIn && userRole === 'supplier'">
 			<view class="header">
 				<text class="welcome-text">欢迎, 供货商 {{ currentUser.nickname || currentUser.username }}</text>
+				<view class="header-actions">
+					<button type="default" class="action-button change-password-btn" size="mini" @click="goToChangePassword">修改密码</button>
+					<button class="action-button logout-btn-header" size="mini" @click="handleLogout">退出登录</button>
+					</view>
 			</view>
 
 			<view class="order-list-section">
@@ -47,20 +51,17 @@
 					</view>
 				</scroll-view>
 			</view>
-			<button class="logout-button" @click="handleLogout">退出登录</button>
-		</view>
+			</view>
 		<view v-else-if="!isPageLoading" class="unauthorized-container">
 			<text>权限不足或未登录。请以供货商身份登录。</text>
 			<button size="mini" @click="goToLogin" class="login-prompt-button">去登录</button>
 		</view>
+		<view v-else class="loading-text">页面加载中...</view>
 	</view>
 </template>
 
 <script>
-	import {
-		mapGetters,
-		mapActions
-	} from 'vuex';
+	import { mapGetters, mapActions, mapState } from 'vuex'; // 引入 mapState
 
 	export default {
 		data() {
@@ -68,15 +69,11 @@
 				orderList: [],
 				loadingOrders: false,
 				isPageLoading: true,
-				// pagination related data
-				// currentPage: 1,
-				// pageSize: 10,
-				// totalOrders: 0,
-				// hasMore: true
 			};
 		},
 		computed: {
-			...mapGetters('user', ['isLoggedIn', 'currentUser', 'userRole', 'token'])
+			...mapGetters('user', ['isLoggedIn', 'currentUser', 'userRole']),
+			...mapState('user', ['token']) // 直接从 state 获取 token
 		},
 		onShow() {
 			this.isPageLoading = true;
@@ -86,12 +83,12 @@
 			...mapActions('user', ['logout']),
 
 			checkSupplierAuthAndLoadData() {
-				if (!this.isLoggedIn) {
+				if (!this.isLoggedIn) { // 可以直接用 mapGetters 的 isLoggedIn
 					this.$store.dispatch('user/logout');
 					this.isPageLoading = false;
 					return;
 				}
-				if (this.userRole !== 'supplier') {
+				if (this.userRole !== 'supplier') { // 可以直接用 mapGetters 的 userRole
 					uni.showToast({
 						title: '权限不足',
 						icon: 'error',
@@ -107,51 +104,33 @@
 
 			async fetchSupplierOrders() {
 				this.loadingOrders = true;
-				const currentToken = this.token || uni.getStorageSync('userToken');
-				if (!currentToken) {
+				// const currentToken = this.token || uni.getStorageSync('userToken'); // 直接使用 this.token
+				if (!this.token) {
 					this.goToLogin();
 					this.loadingOrders = false;
 					return;
 				}
 
 				try {
-					// 后端 order-center 的 viewOrders action 会根据 Supplier 角色自动过滤订单
-					// 返回：所有 'pending' 订单，以及 supplierId 是当前用户且状态为 'timing' 或 'ready_to_send' 的订单
 					const res = await uni.cloud.callFunction({
 						name: 'order-center',
 						data: {
 							action: 'viewOrders',
-							token: currentToken,
-							// page: this.currentPage,
-							// pageSize: this.pageSize
+							token: this.token, // 使用 this.token
 						}
 					});
 
 					if (res.result.code === 200) {
 						this.orderList = res.result.data;
-						// this.totalOrders = res.result.total;
-						// this.hasMore = this.orderList.length < this.totalOrders;
 					} else if (res.result.code === 401) {
-						uni.showToast({
-							title: res.result.message || '登录失效',
-							icon: 'error',
-							duration: 1500
-						});
+						uni.showToast({ title: res.result.message || '登录失效', icon: 'error', duration: 1500 });
 						this.goToLogin();
 					} else {
-						uni.showToast({
-							title: res.result.message || '加载订单失败',
-							icon: 'error',
-							duration: 1500
-						});
+						uni.showToast({ title: res.result.message || '加载订单失败', icon: 'error', duration: 1500 });
 					}
 				} catch (err) {
 					console.error('fetchSupplierOrders 调用失败:', err);
-					uni.showToast({
-						title: '请求订单列表异常',
-						icon: 'error',
-						duration: 1500
-					});
+					uni.showToast({ title: '请求订单列表异常', icon: 'error', duration: 1500 });
 				} finally {
 					this.loadingOrders = false;
 				}
@@ -159,11 +138,10 @@
 
 			goToOrderDetails(orderId) {
 				uni.navigateTo({
-					url: `/pages/common/orderDetails?id=${orderId}`
+					url: `/pages/common/orderDetails?id=${orderId}` //
 				});
 			},
 
-			// --- Helper methods (can be moved to utils.js) ---
 			formatOrderType(type) {
 				if (type === 'cdk') return 'CDK激活码';
 				if (type === 'gift') return '皮肤赠送';
@@ -184,7 +162,11 @@
 				const date = new Date(dateString);
 				return `${date.getFullYear()}-${('0' + (date.getMonth() + 1)).slice(-2)}-${('0' + date.getDate()).slice(-2)} ${('0' + date.getHours()).slice(-2)}:${('0' + date.getMinutes()).slice(-2)}`;
 			},
-
+			goToChangePassword() {
+				uni.navigateTo({
+					url: '/pages/user/changePassword'
+				});
+			},
 			handleLogout() {
 				this.logout();
 			},
@@ -198,160 +180,147 @@
 
 				const currentPages = getCurrentPages();
 				const currentPageRoute = currentPages.length ? currentPages[currentPages.length - 1].route : null;
-				if (url !== `/${currentPageRoute}`) {
-					uni.reLaunch({
-						url
-					});
-				}
+				if (url && (!currentPageRoute || url !== `/${currentPageRoute}`)) { // 确保有url且不是当前页
+					uni.reLaunch({ url });
+				} else if (!url) { // 角色未知，则登出
+                    this.$store.dispatch('user/logout');
+                }
 			}
 		}
 	}
 </script>
 
 <style scoped>
-	/* 大部分样式可以复用 pages/cs/index.vue 中的样式，这里只列出一些差异或重点 */
-	.supplier-dashboard-container {
-		padding: 20rpx;
-		background-color: #f4f4f4;
-		min-height: 100vh;
-	}
+.supplier-dashboard-container { /* Renamed main container class for clarity */
+	padding: 20rpx;
+	background-color: #f4f4f4;
+	min-height: 100vh;
+	box-sizing: border-box;
+}
+.header {
+	background-color: #ffffff;
+	padding: 25rpx 20rpx; /* Consistent padding */
+	border-radius: 12rpx;
+	margin-bottom: 25rpx; /* Consistent margin */
+	display: flex;
+	flex-direction: column; /* Stack welcome text and actions vertically */
+	align-items: flex-start; /* Align items to the start (left) */
+	box-shadow: 0 2rpx 10rpx rgba(0,0,0,0.03);
+}
+.welcome-text {
+	font-size: 30rpx; /* Consistent font size */
+	font-weight: bold;
+	color: #333;
+	margin-bottom: 20rpx; /* Space between welcome text and button row */
+	width: 100%; 
+}
+.header-actions {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap; 
+	gap: 15rpx; /* Space between buttons */
+	width: 100%; 
+	justify-content: flex-start; /* Align buttons to the start */
+}
+.action-button { /* Common style for header buttons */
+	font-size: 26rpx;
+	padding: 0 20rpx;
+	height: 60rpx;
+	line-height: 60rpx;
+	flex-shrink: 0;
+    border-radius: 8rpx;
+    text-align: center;
+    /* specific button colors */
+}
+.change-password-btn { /* Style for change password button */
+	background-color: #6c757d; /* Greyish */
+	color: white;
+}
+.logout-btn-header { /* Style for logout button in header */
+	background-color: #e64340; /* Redish/Warning */
+	color: white;
+}
 
-	.header {
-		background-color: #ffffff;
-		padding: 30rpx 20rpx;
-		border-radius: 12rpx;
-		margin-bottom: 20rpx;
-		box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.03);
-	}
-
-	.welcome-text {
-		font-size: 32rpx;
-		font-weight: bold;
-		color: #333;
-	}
-
-	.order-list-section {
-		background-color: #ffffff;
-		padding: 20rpx;
-		border-radius: 12rpx;
-		box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.03);
-	}
-
-	.list-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		margin-bottom: 20rpx;
-		padding-bottom: 20rpx;
-		border-bottom: 1px solid #f0f0f0;
-	}
-
-	.list-title {
-		font-size: 32rpx;
-		font-weight: bold;
-		color: #333;
-	}
-
-	.refresh-button {
-		background-color: #f0f0f0;
-		color: #333;
-		font-size: 24rpx;
-		padding: 0 20rpx;
-		height: 50rpx;
-		line-height: 50rpx;
-	}
-
-	.order-scroll-view {
-		height: calc(100vh - 380rpx);
-		/* 根据实际页面布局调整高度 */
-	}
-
-	.order-card {
-		background-color: #f9f9f9;
-		border: 1px solid #e9e9e9;
-		border-radius: 8rpx;
-		padding: 20rpx;
-		margin-bottom: 20rpx;
-	}
-
-	.order-row {
-		display: flex;
-		font-size: 26rpx;
-		margin-bottom: 8rpx;
-		line-height: 1.6;
-	}
-
-	.order-label {
-		width: 150rpx;
-		color: #666;
-	}
-
-	.order-value {
-		flex: 1;
-		color: #333;
-		word-break: break-all;
-	}
-
-	.type-value.cdk {
-		color: #2a9ff6;
-		font-weight: bold;
-	}
-
-	.type-value.gift {
-		color: #e64340;
-		font-weight: bold;
-	}
-
-	.status-value.pending {
-		color: #ff9900;
-	}
-
-	.status-value.timing {
-		color: #2a9ff6;
-	}
-
-	.status-value.ready_to_send {
-		color: #1aad19;
-	}
-
-	/* 假设这是定时器更新后的状态 */
-	.status-value.completed {
-		color: #09bb07;
-	}
-
-	.important-time {
-		color: #e64340;
-		font-weight: bold;
-	}
-
-	.loading-text,
-	.empty-text {
-		text-align: center;
-		color: #999;
-		padding: 50rpx 0;
-		font-size: 28rpx;
-	}
-
-	.logout-button {
-		margin-top: 40rpx;
-		background-color: #e64340;
-		color: white;
-	}
-
-	.unauthorized-container {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		height: 70vh;
-		text-align: center;
-		color: #666;
-		font-size: 28rpx;
-	}
-
-	.login-prompt-button {
-		margin-top: 30rpx;
-		background-color: #007aff;
-		color: white;
-	}
+/* Styles for order list section, copied and adapted from cs/index.vue for consistency */
+.order-list-section {
+	background-color: #ffffff;
+	padding: 20rpx;
+	border-radius: 12rpx;
+	box-shadow: 0 2rpx 10rpx rgba(0,0,0,0.03);
+}
+.list-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 20rpx;
+	padding-bottom: 20rpx;
+	border-bottom: 1px solid #f0f0f0;
+}
+.list-title {
+	font-size: 32rpx;
+	font-weight: bold;
+	color: #333;
+}
+.refresh-button {
+	background-color: #f0f0f0;
+	color: #333;
+	font-size: 24rpx;
+	padding: 0 20rpx;
+	height: 50rpx;
+	line-height: 50rpx;
+}
+.order-scroll-view {
+	height: calc(100vh - 420rpx); /* Adjust based on actual header height */
+}
+.order-card {
+	background-color: #f9f9f9;
+	border: 1px solid #e9e9e9;
+	border-radius: 8rpx;
+	padding: 20rpx;
+	margin-bottom: 20rpx;
+	cursor: pointer;
+}
+.order-row {
+	display: flex;
+	font-size: 26rpx;
+	margin-bottom: 8rpx;
+	line-height: 1.6;
+}
+.order-label {
+	width: 150rpx;
+	color: #666;
+	flex-shrink: 0;
+}
+.order-value {
+	flex: 1;
+	color: #333;
+	word-break: break-all;
+}
+.type-value.cdk { color: #2a9ff6; font-weight: bold; }
+.type-value.gift { color: #e64340; font-weight: bold; }
+.status-value.pending { color: #ff9900; }
+.status-value.timing { color: #2a9ff6; }
+.status-value.ready_to_send { color: #1aad19; }
+.status-value.completed { color: #09bb07; }
+.status-value.cancelled { color: #888888; }
+.important-time {
+	color: #e64340;
+	font-weight: bold;
+}
+.loading-text, .empty-text, .unauthorized-container {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding-top: 100rpx;
+	text-align: center;
+	color: #666;
+	font-size: 28rpx;
+}
+.login-prompt-button {
+	margin-top: 30rpx;
+	background-color: #007aff;
+	color: white;
+}
+/* Original .logout-button style is removed as it's now in header */
 </style>
