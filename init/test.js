@@ -11,7 +11,7 @@ function hashPassword(password) {
 }
 
 // 你想设置的密码
-const myPassword = 'admin_password123'; // 替换成你想设置的复杂密码
+const myPassword = '123456'; // 替换成你想设置的复杂密码
 const result = hashPassword(myPassword);
 
 console.log('请将以下信息手动添加到云数据库 users 集合中:');
