@@ -5,19 +5,25 @@
 				"navigationBarTitleText": "登录"
 			}
 		},
-		{ // 管理员主页/导航页
+		{
 			"path": "pages/admin/index",
 			"style": {
 				"navigationBarTitleText": "管理中心"
 			}
 		},
-		{ // 新的用户管理页
+		{
+			"path": "pages/admin/gameManagement",
+			"style": {
+				"navigationBarTitleText": "游戏管理"
+			}
+		},
+		{
 			"path": "pages/admin/userManagement",
 			"style": {
 				"navigationBarTitleText": "用户管理"
 			}
 		},
-		{ // <-- 新增 Admin 添加用户页面
+		{
 			"path": "pages/admin/addUser",
 			"style": {
 				"navigationBarTitleText": "添加新用户"
@@ -29,14 +35,14 @@
 		        "navigationBarTitleText": "修改密码"
 		    }
 		},
-		{ // 管理员订单列表页
+		{
 			"path": "pages/admin/orderList",
 			"style": {
 				"navigationBarTitleText": "所有订单管理"
 			}
 		},
 		{
-			"path": "pages/admin/statistics", // <-- 新增 Admin 统计页面
+			"path": "pages/admin/statistics",
 			"style": {
 				"navigationBarTitleText": "订单统计"
 			}
@@ -72,32 +78,6 @@
 		"navigationBarBackgroundColor": "#F8F8F8",
 		"backgroundColor": "#F8F8F8"
 	},
-	"tabBar": {
-		"color": "#7A7E83",
-		"selectedColor": "#007AFF",
-		"borderStyle": "black",
-		"backgroundColor": "#FFFFFF",
-		"list": [{
-				"pagePath": "pages/cs/index",
-				"text": "客服",
-				"iconPath": "static/tabbar/cs.png", // 请准备相应图标
-				"selectedIconPath": "static/tabbar/cs_selected.png"
-			},
-			{
-				"pagePath": "pages/supplier/index",
-				"text": "供货商",
-				"iconPath": "static/tabbar/supplier.png",
-				"selectedIconPath": "static/tabbar/supplier_selected.png"
-			},
-			{
-				"pagePath": "pages/admin/index",
-				"text": "管理",
-				"iconPath": "static/tabbar/admin.png",
-				"selectedIconPath": "static/tabbar/admin_selected.png"
-			}
-		]
-	},
-	// 设置应用的入口页面为登录页
 	"entryPagePath": "pages/login/login",
 	"lazyCodeLoading": "requiredComponents"
 }

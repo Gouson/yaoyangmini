@@ -26,6 +26,15 @@
 				</picker>
 			</view>
 
+			<view class="form-item" v-if="newUser.role === 'cs' || newUser.role === 'supplier'">
+				<text class="form-label">所属游戏:</text>
+				<picker mode="selector" class="role-picker" :range="gameList" range-key="name" @change="handleGameSelectionChange">
+					<view class="picker-display-value">
+						{{ selectedGameText }}
+					</view>
+				</picker>
+			</view>
+
 			<view v-if="errorMsg" class="error-message">{{ errorMsg }}</view>
 			<button type="primary" class="submit-button" @click="handleAddUser" :loading="submitting" :disabled="submitting">
 				确认添加
@@ -35,200 +44,116 @@
 </template>
 
 <script>
-import { mapState } from 'vuex';
-
-export default {
-	data() {
-		return {
-			newUser: {
-				username: '',
-				nickname: '',
-				password: '',
-				role: 'cs', 
-			},
-			confirmPassword: '',
-			submitting: false,
-			errorMsg: '',
-			assignableRoleOptions: [
-				{ value: 'cs', text: '客服' },
-				{ value: 'supplier', text: '供货商' }
-			],
-			selectedRoleText: '客服', 
-		};
-	},
-	computed: {
-		...mapState('user', ['token'])
-	},
-	onLoad() {
-		if (this.$store.getters['user/userRole'] !== 'admin') {
-			uni.showToast({ title: '无权限访问', icon: 'none' });
-			uni.navigateBack();
-		}
-        this.selectedRoleText = this.assignableRoleOptions.find(opt => opt.value === this.newUser.role)?.text || '请选择';
-	},
-	methods: {
-		handleRoleSelectionChange(e) {
-			const selectedIndex = e.detail.value;
-			this.newUser.role = this.assignableRoleOptions[selectedIndex].value;
-			this.selectedRoleText = this.assignableRoleOptions[selectedIndex].text;
+	import { mapState } from 'vuex';
+	export default {
+		data() {
+			return {
+				newUser: { username: '', nickname: '', password: '', role: 'cs', game_id: null },
+				confirmPassword: '',
+				submitting: false,
+				errorMsg: '',
+				assignableRoleOptions: [{ value: 'cs', text: '客服' }, { value: 'supplier', text: '供货商' }],
+				selectedRoleText: '客服',
+				gameList: [],
+				selectedGameText: '请选择游戏',
+			};
 		},
-		async handleAddUser() {
-			this.errorMsg = ''; 
-
-			if (!this.newUser.username) {
-				this.errorMsg = '用户名称不能为空';
-				uni.showToast({ title: this.errorMsg, icon: 'none' });
-				return;
+		computed: {
+			...mapState('user', ['token'])
+		},
+		onLoad() {
+			if (this.$store.getters['user/userRole'] !== 'admin') {
+				uni.showToast({ title: '无权限访问', icon: 'none' });
+				uni.navigateBack();
 			}
-			if (!this.newUser.nickname) {
-				this.errorMsg = '用户昵称不能为空';
-				uni.showToast({ title: this.errorMsg, icon: 'none' });
-				return;
-			}
-			if (this.newUser.password.length < 6) {
-				this.errorMsg = '密码长度不能少于6位';
-				uni.showToast({ title: this.errorMsg, icon: 'none' });
-				return;
-			}
-			if (this.newUser.password !== this.confirmPassword) {
-				this.errorMsg = '两次输入的密码不一致';
-				uni.showToast({ title: this.errorMsg, icon: 'none' });
-				return;
-			}
-			if (!this.newUser.role) {
-				this.errorMsg = '请选择用户角色';
-				uni.showToast({ title: this.errorMsg, icon: 'none' });
-				return;
-			}
-
-			this.submitting = true;
-			uni.showLoading({ title: '添加中...' });
-
-			try {
-				// *** CORRECTED HERE ***
-				const res = await uni.cloud.callFunction({
-					name: 'account-center',
-					data: {
-						action: 'adminAddUser',
-						token: this.token,
-						newUserDetails: {
-							username: this.newUser.username,
-							password: this.newUser.password,
-							role: this.newUser.role,
-							nickname: this.newUser.nickname,
+			this.fetchGames();
+		},
+		methods: {
+			async fetchGames() {
+				try {
+					const res = await uni.cloud.callFunction({ name: 'account-center', data: { action: 'getGames', token: this.token } });
+					if (res.result.code === 200) {
+						this.gameList = res.result.data;
+						if (this.gameList.length > 0) {
+						    this.newUser.game_id = this.gameList[0]._id;
+						    this.selectedGameText = this.gameList[0].name;
 						}
+					} else {
+						this.errorMsg = '游戏列表加载失败';
 					}
-				});
-				uni.hideLoading();
-				if (res.result.code === 200) {
-					uni.showToast({ title: '用户添加成功!', icon: 'success', duration: 2000 });
-					this.newUser = { username: '', nickname: '', password: '', role: 'cs' };
-					this.confirmPassword = '';
-                    this.selectedRoleText = this.assignableRoleOptions.find(opt => opt.value === this.newUser.role)?.text || '请选择';
-					setTimeout(() => {
-						uni.navigateBack();
-					}, 2000);
-				} else if (res.result.code === 401) {
-                    uni.showToast({ title: res.result.message || '登录失效,请重新登录', icon: 'error' });
-                    this.$store.dispatch('user/logout');
-                }
-                else {
-					this.errorMsg = res.result.message || '添加用户失败';
-					uni.showToast({ title: this.errorMsg, icon: 'none', duration: 3000 });
+				} catch (e) {
+					this.errorMsg = '请求游戏列表失败';
 				}
-			} catch (err) {
-				uni.hideLoading();
-				this.submitting = false;
-				this.errorMsg = err.message || '请求失败，请检查网络';
-				uni.showToast({ title: this.errorMsg, icon: 'none', duration: 3000 });
-				console.error("handleAddUser error: ", err);
-			} finally {
-				this.submitting = false;
+			},
+			handleRoleSelectionChange(e) {
+				const selectedIndex = e.detail.value;
+				this.newUser.role = this.assignableRoleOptions[selectedIndex].value;
+				this.selectedRoleText = this.assignableRoleOptions[selectedIndex].text;
+			},
+			handleGameSelectionChange(e) {
+				const selectedIndex = e.detail.value;
+				this.newUser.game_id = this.gameList[selectedIndex]._id;
+				this.selectedGameText = this.gameList[selectedIndex].name;
+			},
+			async handleAddUser() {
+				this.errorMsg = '';
+				if (!this.newUser.username || !this.newUser.nickname || !this.newUser.password || !this.confirmPassword) {
+					this.errorMsg = '请填写所有必填项';
+					uni.showToast({ title: this.errorMsg, icon: 'none' });
+					return;
+				}
+				if (this.newUser.password.length < 6) {
+					this.errorMsg = '密码长度不能少于6位';
+					uni.showToast({ title: this.errorMsg, icon: 'none' });
+					return;
+				}
+				if (this.newUser.password !== this.confirmPassword) {
+					this.errorMsg = '两次输入的密码不一致';
+					uni.showToast({ title: this.errorMsg, icon: 'none' });
+					return;
+				}
+				if ((this.newUser.role === 'cs' || this.newUser.role === 'supplier') && !this.newUser.game_id) {
+					this.errorMsg = '请为用户选择所属游戏';
+					uni.showToast({ title: this.errorMsg, icon: 'none' });
+					return;
+				}
+
+				this.submitting = true;
+				uni.showLoading({ title: '添加中...' });
+
+				try {
+					const res = await uni.cloud.callFunction({
+						name: 'account-center',
+						data: {
+							action: 'adminAddUser',
+							token: this.token,
+							newUserDetails: this.newUser
+						}
+					});
+					if (res.result.code === 200) {
+						uni.showToast({ title: '用户添加成功!', icon: 'success' });
+						setTimeout(() => uni.navigateBack(), 1500);
+					} else {
+						uni.showToast({ title: res.result.message || '添加失败', icon: 'error' });
+					}
+				} catch (err) {
+					uni.showToast({ title: '请求异常', icon: 'error' });
+				} finally {
+					this.submitting = false;
+					uni.hideLoading();
+				}
 			}
 		}
 	}
-}
 </script>
 
 <style scoped>
-	/* 样式部分保持不变，与您之前提供的样式一致 */
-.add-user-container {
-	padding: 30rpx 40rpx;
-	background-color: #f8f9fa;
-	min-height: 100vh;
-}
-
-.form-title {
-	font-size: 40rpx;
-	font-weight: bold;
-	text-align: center;
-	margin-bottom: 40rpx;
-	color: #333;
-}
-
-.form-item {
-	margin-bottom: 30rpx;
-	background-color: #fff;
-	padding: 20rpx;
-	border-radius: 10rpx;
-	box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.05);
-}
-.form-label {
-    display: block;
-    font-size: 28rpx;
-    color: #555;
-    margin-bottom: 10rpx;
-}
-
-.input-field {
-	width: 100%;
-	height: 80rpx;
-	padding: 0 20rpx;
-	box-sizing: border-box;
-	font-size: 28rpx;
-	border: 1rpx solid #ddd;
-	border-radius: 8rpx;
-}
-.input-field:focus {
-    border-color: #007bff;
-}
-
-.role-picker {
-    height: 80rpx;
-    line-height: 80rpx; 
-    border: 1rpx solid #ddd;
-    border-radius: 8rpx;
-    padding: 0 20rpx;
-    background-color: #fff;
-    font-size: 28rpx;
-}
-.picker-display-value {
-    color: #333; 
-}
-
-
-.error-message {
-	color: #dc3545;
-	font-size: 26rpx;
-	text-align: center;
-	margin-bottom: 20rpx;
-	padding: 15rpx;
-	background-color: #f8d7da;
-	border: 1rpx solid #f5c6cb;
-	border-radius: 8rpx;
-}
-
-.submit-button {
-	width: 100%;
-	height: 90rpx;
-	line-height: 90rpx;
-	font-size: 32rpx;
-	margin-top: 30rpx;
-	border-radius: 45rpx;
-	background-color: #007bff;
-	color: white;
-}
-.submit-button[disabled] {
-	background-color: #a0cfff;
-}
+	.add-user-container { padding: 30rpx 40rpx; background-color: #f8f9fa; min-height: 100vh; }
+	.form-title { font-size: 40rpx; font-weight: bold; text-align: center; margin-bottom: 40rpx; color: #333; }
+	.form-item { margin-bottom: 30rpx; }
+	.form-label { display: block; font-size: 28rpx; color: #555; margin-bottom: 10rpx; }
+	.input-field, .role-picker { width: 100%; height: 80rpx; padding: 0 20rpx; box-sizing: border-box; font-size: 28rpx; border: 1rpx solid #ddd; border-radius: 8rpx; background-color: #fff; }
+	.picker-display-value { line-height: 80rpx; }
+	.error-message { color: #dc3545; font-size: 26rpx; text-align: center; margin-bottom: 20rpx; padding: 15rpx; background-color: #f8d7da; border: 1rpx solid #f5c6cb; border-radius: 8rpx; }
+	.submit-button { width: 100%; height: 90rpx; line-height: 90rpx; font-size: 32rpx; margin-top: 30rpx; border-radius: 45rpx; background-color: #007bff; color: white; }
 </style>
